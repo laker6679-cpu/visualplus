@@ -1,4 +1,4 @@
--- VISUALPLUS UI v1.0
+-- VISUALPLUS UI v1.1
 local VisualPlus = {}
 
 local CoreGui      = game:GetService("CoreGui")
@@ -44,6 +44,7 @@ local function tw(inst, time, props)
 	return t
 end
 
+-- NOTIFY
 local notifyGui = nil
 local notifyStack = {}
 
@@ -132,13 +133,21 @@ function VisualPlus:Notify(opts)
 	end)
 end
 
+-- WINDOW
 function VisualPlus:CreateWindow(opts)
 	opts = opts or {}
 	local title    = opts.Title or "VisualPlus"
 	local subtitle = opts.Subtitle or "v1.0"
 	local size     = opts.Size or UDim2.fromOffset(720, 460)
 
-	local win = { Tabs = {}, Options = {}, ActiveTab = nil, Visible = true }
+	local win = {
+		Tabs = {},
+		Options = {},
+		ActiveTab = nil,
+		Visible = true,
+		Closed = false,
+		ToggleKey = opts.ToggleKey or "RightShift",
+	}
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "VisualPlusUI"
@@ -205,6 +214,9 @@ function VisualPlus:CreateWindow(opts)
 	btnMin.Parent = titlebar
 	cr(btnMin, 6)
 
+	btnMin.MouseEnter:Connect(function() tw(btnMin, 0.15, {BackgroundColor3 = Theme.Hover}) end)
+	btnMin.MouseLeave:Connect(function() tw(btnMin, 0.15, {BackgroundColor3 = Theme.Panel}) end)
+
 	local btnClose = Instance.new("TextButton")
 	btnClose.Size = UDim2.new(0, 28, 0, 28)
 	btnClose.Position = UDim2.new(1, -40, 0, 8)
@@ -218,7 +230,11 @@ function VisualPlus:CreateWindow(opts)
 	btnClose.Parent = titlebar
 	cr(btnClose, 6)
 
+	btnClose.MouseEnter:Connect(function() tw(btnClose, 0.15, {BackgroundColor3 = Theme.Bad, TextColor3 = Color3.new(1,1,1)}) end)
+	btnClose.MouseLeave:Connect(function() tw(btnClose, 0.15, {BackgroundColor3 = Theme.Panel, TextColor3 = Theme.TextDim}) end)
+
 	local sidebar = Instance.new("Frame")
+	sidebar.Name = "Sidebar"
 	sidebar.Size = UDim2.new(0, 180, 1, -58)
 	sidebar.Position = UDim2.new(0, 12, 0, 48)
 	sidebar.BackgroundColor3 = Theme.Bg2
@@ -238,6 +254,7 @@ function VisualPlus:CreateWindow(opts)
 	sidebarScroll.Parent = sidebar
 
 	local content = Instance.new("Frame")
+	content.Name = "Content"
 	content.Size = UDim2.new(1, -204, 1, -58)
 	content.Position = UDim2.new(0, 204, 0, 48)
 	content.BackgroundTransparency = 1
@@ -245,8 +262,12 @@ function VisualPlus:CreateWindow(opts)
 
 	win.Gui = gui
 	win.Main = main
+	win.Sidebar = sidebar
+	win.Content = content
+	win.Titlebar = titlebar
 	win.Blur = blur
 
+	-- Drag
 	local dragging, dragStart, startPos
 	titlebar.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -265,6 +286,7 @@ function VisualPlus:CreateWindow(opts)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
 	end)
 
+	-- Minimize
 	local minimized = false
 	btnMin.MouseButton1Click:Connect(function()
 		minimized = not minimized
@@ -280,16 +302,53 @@ function VisualPlus:CreateWindow(opts)
 		end
 	end)
 
+	-- Close
 	btnClose.MouseButton1Click:Connect(function()
+		win.Closed = true
 		win.Visible = false
 		tw(main, 0.3, {Size = UDim2.fromOffset(0, 0)})
 		tw(blur, 0.3, {Size = 0})
 		task.delay(0.35, function() gui.Enabled = false end)
 	end)
 
+	-- Toggle method
+	function win:Toggle(state)
+		if state == nil then state = not win.Visible end
+
+		if state then
+			win.Closed = false
+			win.Visible = true
+			gui.Enabled = true
+			main.Visible = true
+			tw(main, 0.35, {Size = size})
+			tw(blur, 0.35, {Size = 8})
+		else
+			win.Visible = false
+			tw(main, 0.35, {Size = UDim2.fromOffset(0, 0)})
+			tw(blur, 0.35, {Size = 0})
+			task.delay(0.35, function()
+				if not win.Visible then gui.Enabled = false end
+			end)
+		end
+	end
+
+	-- Toggle hotkey
+	if win.ToggleKey and win.ToggleKey ~= "" then
+		local keyName = tostring(win.ToggleKey)
+		UIS.InputBegan:Connect(function(input, gp)
+			if gp then return end
+			if input.UserInputType == Enum.UserInputType.Keyboard
+				and input.KeyCode.Name == keyName then
+				win:Toggle()
+			end
+		end)
+	end
+
+	-- Open animation
 	tw(main, 0.4, {Size = size})
 	tw(blur, 0.4, {Size = 8})
 
+	-- TAB
 	function win:AddTab(tabOpts)
 		tabOpts = tabOpts or {}
 		local tabName = tabOpts.Name or "Tab"
@@ -328,8 +387,21 @@ function VisualPlus:CreateWindow(opts)
 		tabPage.Visible = false
 		tabPage.Parent = content
 
-		local tab = { Name = tabName, Button = tabBtn, Indicator = indicator, Page = tabPage, Sections = {} }
+		local tab = {
+			Name = tabName,
+			Button = tabBtn,
+			Indicator = indicator,
+			Page = tabPage,
+			Sections = {},
+		}
 		table.insert(win.Tabs, tab)
+
+		tabBtn.MouseEnter:Connect(function()
+			if tab ~= win.ActiveTab then tw(tabBtn, 0.15, {BackgroundTransparency = 0.6}) end
+		end)
+		tabBtn.MouseLeave:Connect(function()
+			if tab ~= win.ActiveTab then tw(tabBtn, 0.15, {BackgroundTransparency = 1}) end
+		end)
 
 		tabBtn.MouseButton1Click:Connect(function()
 			if win.ActiveTab and win.ActiveTab ~= tab then
@@ -354,10 +426,17 @@ function VisualPlus:CreateWindow(opts)
 			indicator.BackgroundTransparency = 0
 		end
 
+		-- SECTION
 		function tab:AddSection(secOpts)
 			secOpts = secOpts or {}
 			local secName = secOpts.Name or ""
-			local sec = { Name = secName, Height = (secName ~= "" and 40 or 16), _y = (secName ~= "" and 34 or 10) }
+
+			local sec = {
+				Name = secName,
+				Height = (secName ~= "" and 40 or 16),
+				Controls = {},
+				_y = (secName ~= "" and 34 or 10),
+			}
 
 			local holder = Instance.new("Frame")
 			holder.Size = UDim2.new(1, -20, 0, sec.Height)
@@ -423,8 +502,12 @@ function VisualPlus:CreateWindow(opts)
 				btn.MouseEnter:Connect(function() tw(btn, 0.15, {BackgroundColor3 = Theme.Hover}) end)
 				btn.MouseLeave:Connect(function() tw(btn, 0.15, {BackgroundColor3 = Theme.Panel}) end)
 				btn.MouseButton1Click:Connect(function()
-					if btnOpts.Callback then pcall(btnOpts.Callback) end
+					if btnOpts.Callback then
+						local ok, err = pcall(btnOpts.Callback)
+						if not ok then warn("[VisualPlus] Button:", err) end
+					end
 				end)
+
 				fitControl(h)
 				return btn
 			end
@@ -475,7 +558,10 @@ function VisualPlus:CreateWindow(opts)
 					state = v
 					tw(sw, 0.2, {BackgroundColor3 = state and Theme.Accent or Theme.Stroke})
 					tw(knob, 0.2, {Position = state and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)})
-					if tglOpts.Callback then pcall(tglOpts.Callback, state) end
+					if tglOpts.Callback then
+						local ok, err = pcall(tglOpts.Callback, state)
+						if not ok then warn("[VisualPlus] Toggle:", err) end
+					end
 				end
 
 				btn.MouseButton1Click:Connect(function() setState(not state) end)
@@ -558,7 +644,10 @@ function VisualPlus:CreateWindow(opts)
 					fill.Size = UDim2.new(r, 0, 1, 0)
 					knob.Position = UDim2.new(r, 0, 0.5, 0)
 					valLbl.Text = tostring(v)
-					if fire and slOpts.Callback then pcall(slOpts.Callback, v) end
+					if fire and slOpts.Callback then
+						local ok, err = pcall(slOpts.Callback, v)
+						if not ok then warn("[VisualPlus] Slider:", err) end
+					end
 				end
 
 				local function update(mx)
@@ -666,11 +755,17 @@ function VisualPlus:CreateWindow(opts)
 					opt.ZIndex = 52
 					opt.Parent = scroll
 					cr(opt, 5)
+
+					opt.MouseEnter:Connect(function() tw(opt, 0.15, {BackgroundTransparency = 0.5}) end)
+					opt.MouseLeave:Connect(function() tw(opt, 0.15, {BackgroundTransparency = 1}) end)
 					opt.MouseButton1Click:Connect(function()
 						selected = v
 						ddBtn.Text = v
 						popup.Visible = false
-						if ddOpts.Callback then pcall(ddOpts.Callback, v) end
+						if ddOpts.Callback then
+							local ok, err = pcall(ddOpts.Callback, v)
+							if not ok then warn("[VisualPlus] Dropdown:", err) end
+						end
 					end)
 					table.insert(optsBtns, opt)
 				end
@@ -684,6 +779,35 @@ function VisualPlus:CreateWindow(opts)
 				local obj = {
 					Value = selected,
 					SetValue = function(v) selected = v; ddBtn.Text = v end,
+					SetValues = function(newVals)
+						values = newVals
+						for _, b in ipairs(optsBtns) do b:Destroy() end
+						optsBtns = {}
+						for i, v in ipairs(newVals) do
+							local opt = Instance.new("TextButton")
+							opt.Size = UDim2.new(1, 0, 0, 24)
+							opt.Position = UDim2.new(0, 0, 0, (i - 1) * 26)
+							opt.BackgroundColor3 = Theme.Panel
+							opt.BackgroundTransparency = 1
+							opt.Text = v
+							opt.TextColor3 = Theme.Text
+							opt.Font = Enum.Font.Gotham
+							opt.TextSize = 12
+							opt.BorderSizePixel = 0
+							opt.ZIndex = 52
+							opt.Parent = scroll
+							cr(opt, 5)
+							opt.MouseButton1Click:Connect(function()
+								selected = v
+								ddBtn.Text = v
+								popup.Visible = false
+								if ddOpts.Callback then pcall(ddOpts.Callback, v) end
+							end)
+							table.insert(optsBtns, opt)
+						end
+						scroll.CanvasSize = UDim2.new(0, 0, 0, #newVals * 26)
+						popup.Size = UDim2.new(0, 140, 0, math.min(#newVals * 26 + 8, 160))
+					end,
 				}
 				win.Options[name] = obj
 				fitControl(h)
@@ -735,6 +859,13 @@ function VisualPlus:CreateWindow(opts)
 							current = input.KeyCode.Name
 							keyBtn.Text = current
 							waiting = false
+							if conn then conn:Disconnect() end
+						end
+					end)
+					task.delay(3, function()
+						if waiting then
+							waiting = false
+							keyBtn.Text = current
 							if conn then conn:Disconnect() end
 						end
 					end)
