@@ -1,4 +1,4 @@
--- VISUALPLUS UI v1.2
+-- VISUALPLUS UI v1.3
 local VisualPlus = {}
 
 local CoreGui      = game:GetService("CoreGui")
@@ -137,7 +137,7 @@ end
 function VisualPlus:CreateWindow(opts)
 	opts = opts or {}
 	local title    = opts.Title or "VisualPlus"
-	local subtitle = opts.Subtitle or "v1.2"
+	local subtitle = opts.Subtitle or "v1.3"
 	local size     = opts.Size or UDim2.fromOffset(720, 460)
 
 	local win = {
@@ -266,7 +266,6 @@ function VisualPlus:CreateWindow(opts)
 	win.Titlebar = titlebar
 	win.Blur = blur
 
-	-- Drag
 	local dragging, dragStart, startPos
 	titlebar.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -285,7 +284,6 @@ function VisualPlus:CreateWindow(opts)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
 	end)
 
-	-- Minimize
 	local minimized = false
 	btnMin.MouseButton1Click:Connect(function()
 		minimized = not minimized
@@ -301,7 +299,6 @@ function VisualPlus:CreateWindow(opts)
 		end
 	end)
 
-	-- Close
 	btnClose.MouseButton1Click:Connect(function()
 		win.Visible = false
 		tw(main, 0.3, {Size = UDim2.fromOffset(0, 0)})
@@ -309,7 +306,6 @@ function VisualPlus:CreateWindow(opts)
 		task.delay(0.35, function() gui.Enabled = false end)
 	end)
 
-	-- Toggle
 	function win:Toggle(state)
 		if state == nil then state = not win.Visible end
 		if state then
@@ -346,11 +342,9 @@ function VisualPlus:CreateWindow(opts)
 		end
 	end)
 
-	-- Open animation
 	tw(main, 0.4, {Size = size})
 	tw(blur, 0.4, {Size = 8})
 
-	-- TAB
 	function win:AddTab(tabOpts)
 		tabOpts = tabOpts or {}
 		local tabName = tabOpts.Name or "Tab"
@@ -453,7 +447,6 @@ function VisualPlus:CreateWindow(opts)
 			indicator.BackgroundTransparency = 0
 		end
 
-		-- SECTION
 		function tab:AddSection(secOpts)
 			secOpts = secOpts or {}
 			local secName = secOpts.Name or ""
